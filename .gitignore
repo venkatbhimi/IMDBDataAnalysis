@@ -17,3 +17,4 @@ target/
 .idea*
 c0243156* 
 deploy*
+http* http:/*
