@@ -1,0 +1,19 @@
+# Svn
+.svn
+# Log
+.log *.log **/*.log
+# Eclipse
+.classpath .project .settings/
+# Intellij
+.idea/ 
+*.iml 
+orange.iml 
+*.iws
+# Mac
+.DS_Store
+# Maven
+log/ 
+target/ 
+.idea*
+c0243156* 
+deploy*
