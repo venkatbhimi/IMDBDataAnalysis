@@ -19,7 +19,7 @@ trait SourceLocations extends Logging with Serializable {
         properties.get(param).get.trim
       } catch {
         case e: java.util.NoSuchElementException => {
-          logInfo(s"Parameter not exisits in the properties file => ${param} ")
+          //logInfo(s"Parameter not exisits in the properties file => ${param} ")
           ""
         }
       }

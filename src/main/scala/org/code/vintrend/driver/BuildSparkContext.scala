@@ -9,9 +9,6 @@ import org.apache.spark.sql.SparkSession
   */
 trait BuildSparkContext {
 
-  def getFileSystem(sc:SparkContext) = {
-    FileSystem.get( sc.hadoopConfiguration)
-  }
   /**
     * adding spark configurations to make sure job did not fail on default settings, forexample rpc timeout, network timeout.
     * @param spark
@@ -35,7 +32,7 @@ trait BuildSparkContext {
     * @return Map[String,String]
     */
   def loadProperties(fileName:String, spark:SparkSession, baseDirectory:String): Map[String,String] = {
-    spark.sparkContext.textFile(fileName).map(x=> {
+    spark.sparkContext.textFile(fileName.trim).map(x=> {
       val y = x.split("=>")
       (y(0), baseDirectory + y(1))
     }).collect.toMap

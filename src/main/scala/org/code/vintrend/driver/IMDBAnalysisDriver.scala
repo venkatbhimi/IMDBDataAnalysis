@@ -17,28 +17,42 @@ object IMDBAnalysisDriver extends BuildSparkContext with Logging {
     * @param args
     */
   def main(args: Array[String]) {
+
+  if(args.length < 6) {
+      logInfo(s"**********************start-applicaiton*****************************")
+      logInfo(" Expected arguments 6, Please check the passing arguments, currently passing only: "+args.length)
+      logInfo(" Arguments should contain, PropertiesLocation: String , RM:String, baseDir:String, titleType:String (ex:movie),topXRanks:Int, outputPath:String")
+      logInfo(s"**********************Exiting-applicaiton*****************************")
+      System.exit(0)
+    } else {
+      logInfo(s"**********************INPUT-PARAMETERS*****************************")
+      logInfo(s"Properties Location       => ${args(0)}")
+      logInfo(s"Resource Mananger         => ${args(1)}")
+      logInfo(s"baseDir                   => ${args(2)}")
+      logInfo(s"titleType                 => ${args(3)}")
+      logInfo(s"topXRanks                 => ${args(4)}")
+      logInfo(s"outputPath                => ${args(5)}")
+      logInfo(s"*******************************************************************")
+    }
+
     lazy val spark          : SparkSession  = SparkSession.builder.master("local").appName("IMDB DataSet Analysis").getOrCreate()
 
     initContext(spark) // adding spark config parameters to conf.
+
     val propertiesFileLocation  : String  = args(0)
-    val resourceManager         : String  = args(1)
-    val baseDir                 : String  = args(2)
+    val resourceManager         : String  = if(args(1) == "NA") "" else args(1)
+    val baseDir                 : String  = resourceManager + args(2)
     val titleType               : String  = args(3)
-    val topXRanks               : String  = args(4)
+    val topXRanks               : Int     = args(4).toInt
     val outputPath              : String  = args(5)
 
-
-    lazy val properties: Map[String,String] = loadProperties(propertiesFileLocation, spark, baseDir)
-
-    logInfo(s"**********************INPUT-PARAMETERS*****************************")
-    logInfo(s"Properties Location       => ${propertiesFileLocation}")
-    logInfo(s"Resource Mananger  => ${resourceManager}")
-    logInfo(s"*******************************************************************")
+    lazy val properties: Map[String,String] = loadProperties(propertiesFileLocation, spark, baseDir.trim)
 
     try {
         val imdbAnalysisPipeline = IMDBAnalysisPipeline(spark, properties)
-        val titilesTopXranks     = imdbAnalysisPipeline.runPipeline(titleType = "movies", topXRanks = 20)
+        val titilesTopXranks     = imdbAnalysisPipeline.runPipeline(titleType, topXRanks)
         val outputFileName       = titleType+"_"+topXRanks+".csv"
+        //titilesTopXranks.show(20)
         CSVSink.sink(outputPath+outputFileName, titilesTopXranks)
       }
     catch {

@@ -1,5 +1,6 @@
 # Svn
 .svn
+http
 # Log
 .log *.log **/*.log
 # Eclipse
@@ -18,3 +19,4 @@ target/
 c0243156* 
 deploy*
 http* http:/*
+ http:/

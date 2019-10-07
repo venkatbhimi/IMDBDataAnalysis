@@ -6,7 +6,7 @@ import org.apache.spark.sql.functions._
 import org.code.vintrend.sources.{SourceLocations, TSVFileReader}
 
 /**
-  * Created by "venkatbhimi" on 04/10/2019.
+  * Created by venkatbhimi on 04/10/2019.
   */
 class IMDBAnalysisPipeline(spark:SparkSession, var properties: Map[String, String]) extends SourceLocations {
 
@@ -32,9 +32,9 @@ class IMDBAnalysisPipeline(spark:SparkSession, var properties: Map[String, Strin
     val titilesWithAvgRatings     :DataFrame  =  getTitlesWithAvgRatings(tSVFileReader.readPath(pathtitleratings))
     val titlesWithtopRanks        :DataFrame  =  getTitlesWithAvgRankings(movieTitlesWithNames,titilesWithAvgRatings, topXRanks).cache // caching here as its a small data set of 20 rows
 
-    val titlesWithtopRanksWithCrew : DataFrame              = getCrewDetails(titlesWithtopRanks, tSVFileReader.readPath(pathcrew)).cache // caching here as its a small data set of 20 rows
-    val titlesWithtopRanksWithCrewWithNames :DataFrame      = getTitlesWithCrewNames(titlesWithtopRanksWithCrew, tSVFileReader.readPath(pathnames)).drop("dirdeathYear", "endYear").cache()
-    val titlesWithtopRanksWithCrewWithNamesWithPrevTitles   = getTitlesWithCrewNamesWithPrevTitlesNames(titlesWithtopRanksWithCrewWithNames, movieTitlesWithNames)
+    val titlesWithtopRanksWithCrew : DataFrame                   = getCrewDetails(titlesWithtopRanks, tSVFileReader.readPath(pathcrew)).cache // caching here as its a small data set of 20 rows
+    val titlesWithtopRanksWithCrewWithNames :DataFrame           = getTitlesWithCrewNames(titlesWithtopRanksWithCrew, tSVFileReader.readPath(pathnames)).drop("dirdeathYear", "endYear").cache()
+    val titlesWithtopRanksWithCrewWithNamesWithPrevTitles        = getTitlesWithCrewNamesWithPrevTitlesNames(titlesWithtopRanksWithCrewWithNames, movieTitlesWithNames)
     val titlesWithtopRanksWithCrewWithNamesWithPrevTitlesAdult   = getCleanupNulls(titlesWithtopRanksWithCrewWithNamesWithPrevTitles)
 
     val finalDataSet = titlesWithtopRanksWithCrewWithNamesWithPrevTitlesAdult.select(selectOrderOfCols:_*)
@@ -76,6 +76,8 @@ class IMDBAnalysisPipeline(spark:SparkSession, var properties: Map[String, Strin
     * This is to process known titles for writers and directors , as this codes comes in array of strings,
     * the results should be as collection of titles for both the fields.
     *
+    * in this method join titlesWithtopRanksWithCrewWithNames is broadcasted as its 10 records only.
+    *
     * @param titlesWithtopRanksWithCrewWithNames
     * @param movieTitlesWithNames
     * @return
@@ -83,8 +85,8 @@ class IMDBAnalysisPipeline(spark:SparkSession, var properties: Map[String, Strin
   def getTitlesWithCrewNamesWithPrevTitlesNames(titlesWithtopRanksWithCrewWithNames:DataFrame, movieTitlesWithNames:DataFrame) = {
 
     val prevTitlesForWriter = {
-      val writPrevTitles = titlesWithtopRanksWithCrewWithNames.select("tconst","writPrevTitles").filter($"writPrevTitles".isNotNull).filter($"writPrevTitles" !== Array("")).withColumnRenamed("tconst", "titleId")
-      writPrevTitles.join(titlesWithtopRanksWithCrewWithNames.drop("writPrevTitles"), $"writPrevTitles".cast("String").contains($"tconst".cast("String")))
+      val writPrevTitles = titlesWithtopRanksWithCrewWithNames.select("tconst","writPrevTitles").filter($"writPrevTitles" !== Array("")).withColumnRenamed("tconst", "titleId")
+      writPrevTitles.join(broadcast(titlesWithtopRanksWithCrewWithNames.drop("writPrevTitles")), $"writPrevTitles".cast("String").contains($"tconst".cast("String")))
         .select("titleId", "primaryTitle")
         .withColumnRenamed("primaryTitle", "writPrvKownTitles").rdd
         .map(x => (x.getString(0), x.getString(1)))
@@ -94,8 +96,8 @@ class IMDBAnalysisPipeline(spark:SparkSession, var properties: Map[String, Strin
     val titlesWithtopRanksWithCrewWithNamesWithWritPrvTitles = titlesWithtopRanksWithCrewWithNames.join(prevTitlesForWriter, $"tconst" === $"titleId","left").drop("titleId", "writPrevTitles")
 
     val prevTitlesForDirector = {
-      val writPrevTitles = titlesWithtopRanksWithCrewWithNames.select("tconst","dirPrevTitles").filter($"dirPrevTitles".isNotNull).filter($"dirPrevTitles" !== Array("")).withColumnRenamed("tconst", "titleId")
-      writPrevTitles.join(titlesWithtopRanksWithCrewWithNames.drop("dirPrevTitles"), $"dirPrevTitles".cast("String").contains($"tconst".cast("String")))
+      val writPrevTitles = titlesWithtopRanksWithCrewWithNames.select("tconst","dirPrevTitles").filter($"dirPrevTitles" !== Array("")).withColumnRenamed("tconst", "titleId")
+      writPrevTitles.join(broadcast(titlesWithtopRanksWithCrewWithNames.drop("dirPrevTitles")), $"dirPrevTitles".cast("String").contains($"tconst".cast("String")))
         .select("titleId", "primaryTitle")
         .withColumnRenamed("primaryTitle", "dirPrvKownTitles").rdd
         .map(x => (x.getString(0), x.getString(1)))
